@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MhaKhob - เสื้อ POLO MhaKhob</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8f8f8;
+            color: #333;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+        /* Custom styles for animations */
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        .animate-fade-in {
+            animation: fadeIn 0.3s ease-out;
+        }
+        @keyframes slideInRight {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        .animate-slide-in-right {
+            animation: slideInRight 0.3s ease-out;
+        }
+        @keyframes fadeOut {
+            from { opacity: 1; }
+            to { opacity: 0; }
+        }
+        .animate-fade-out {
+            animation: fadeOut 0.3s ease-out forwards;
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div> <!-- React App will be mounted here -->
+
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script type="module">
+        const { useState, useEffect } = React;
+
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
+        import {
+            getAuth,
+            onAuthStateChanged,
+            signInAnonymously,
+            signInWithCustomToken,
+        } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
+        import { getFirestore, doc, setDoc, getDoc, collection, addDoc, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+
+        // Icons (simplified SVG for direct use in browser)
+        const { ShoppingCart, XCircle, Loader, User, CreditCard, CheckCircle } = window.lucideReact || {
+            ShoppingCart: (props) => React.createElement('svg', { ...props, xmlns: 'http://www.w3.org/2000/svg', width: '24', height: '24', viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: '2', strokeLinecap: 'round', strokeLinejoin: 'round', className: 'lucide lucide-shopping-cart' }, React.createElement('circle', { cx: '8', cy: '21', r: '1'}), React.createElement('circle', { cx: '19', cy: '21', r: '1'}), React.createElement('path', { d: 'M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12'})),
+            XCircle: (props) => React.createElement('svg', { ...props, xmlns: 'http://www.w3.org/2000/svg', width: '24', height: '24', viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: '2', strokeLinecap: 'round', strokeLinejoin: 'round', className: 'lucide lucide-x-circle' }, React.createElement('circle', { cx: '12', cy: '12', r: '10'}), React.createElement('path', { d: 'm15 9-6 6'}), React.createElement('path', { d: 'm9 9 6 6'})),
+            Loader: (props) => React.createElement('svg', { ...props, xmlns: 'http://www.w3.org/2000/svg', width: '24', height: '24', viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: '2', strokeLinecap: 'round', strokeLinejoin: 'round', className: 'lucide lucide-loader' }, React.createElement('line', { x1: '12', x2: '12', y1: '2', y2: '6'}), React.createElement('line', { x1: '12', x2: '12', y1: '18', y2: '22'}), React.createElement('line', { x1: '4.93', x2: '7.76', y1: '4.93', y2: '7.76'}), React.createElement('line', { x1: '16.24', x2: '19.07', y1: '16.24', y2: '19.07'}), React.createElement('line', { x1: '2', x2: '6', y1: '12', y2: '12'}), React.createElement('line', { x1: '18', x2: '22', y1: '12', y2: '12'}), React.createElement('line', { x1: '4.93', x2: '7.76', y1: '19.07', y2: '16.24'}), React.createElement('line', { x1: '16.24', x2: '19.07', y1: '7.76', y2: '4.93'})),
+            User: (props) => React.createElement('svg', { ...props, xmlns: 'http://www.w3.org/2000/svg', width: '24', height: '24', viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: '2', strokeLinecap: 'round', strokeLinejoin: 'round', className: 'lucide lucide-user' }, React.createElement('path', { d: 'M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2'}), React.createElement('circle', { cx: '12', cy: '7', r: '4'})),
+            CreditCard: (props) => React.createElement('svg', { ...props, xmlns: 'http://www.w3.org/2000/svg', width: '24', height: '24', viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: '2', strokeLinecap: 'round', strokeLinejoin: 'round', className: 'lucide lucide-credit-card' }, React.createElement('rect', { width: '20', height: '14', x: '2', y: '5', rx: '2'}), React.createElement('line', { x1: '2', x2: '22', y1: '10', y2: '10'})),
+            CheckCircle: (props) => React.createElement('svg', { ...props, xmlns: 'http://www.w3.org/2000/svg', width: '24', height: '24', viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: '2', strokeLinecap: 'round', strokeLinejoin: 'round', className: 'lucide lucide-check-circle' }, React.createElement('path', { d: 'M22 11.08V12a10 10 0 1 1-5.93-9.14'}), React.createElement('polyline', { points: '22 4 12 14.01 9 11.01'}))
+        };
+
+        // Global variables provided by the Canvas environment
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+        // Message Box Component
+        const MessageBox = ({ message, type, onClose }) => {
+            if (!message) return null;
+            let bgColor = 'bg-blue-500';
+            let title = 'ข้อมูล';
+            if (type === 'error') { bgColor = 'bg-red-500'; title = 'ข้อผิดพลาด'; }
+            else if (type === 'success') { bgColor = 'bg-green-500'; title = 'สำเร็จ'; }
+            return (
+                React.createElement('div', { className: "fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50 p-4" },
+                    React.createElement('div', { className: `relative ${bgColor} text-white p-6 rounded-lg shadow-xl max-w-sm w-full animate-fade-in` },
+                        React.createElement('button', { onClick: onClose, className: "absolute top-3 right-3 text-white hover:text-gray-200 transition duration-200" }, React.createElement(XCircle, { size: 24 })),
+                        React.createElement('h3', { className: "text-xl font-bold mb-3" }, title),
+                        React.createElement('p', { className: "text-lg" }, message)
+                    )
+                )
+            );
+        };
+
+        // Main Product App Component
+        const App = () => {
+            const [auth, setAuth] = useState(null);
+            const [db, setDb] = useState(null);
+            const [user, setUser] = useState(null); // Firebase Auth User
+            const [userProfile, setUserProfile] = useState(null); // User profile from Firestore
+            const [loading, setLoading] = useState(true);
+            const [isAuthReady, setIsAuthReady] = useState(false);
+            const [cart, setCart] = useState([]); // [{ id, name, price, quantity, imageUrl }]
+            const [view, setView] = useState('product'); // 'product', 'cart', 'checkout', 'orderConfirmation'
+
+            const [message, setMessage] = useState('');
+            const [messageType, setMessageType] = useState('info');
+
+            const showMessage = (msg, type = 'info') => {
+                setMessage(msg);
+                setMessageType(type);
+                setTimeout(() => setMessage(''), 5000);
+            };
+
+            // Initialize Firebase and Auth State Listener
+            useEffect(() => {
+                const initializeFirebase = async () => {
+                    try {
+                        const app = initializeApp(firebaseConfig);
+                        const authInstance = getAuth(app);
+                        const dbInstance = getFirestore(app);
+
+                        setAuth(authInstance);
+                        setDb(dbInstance);
+
+                        if (initialAuthToken) {
+                            await signInWithCustomToken(authInstance, initialAuthToken);
+                        } else {
+                            await signInAnonymously(authInstance);
+                        }
+
+                        const unsubscribe = onAuthStateChanged(authInstance, async (currentUser) => {
+                            setUser(currentUser);
+                            setIsAuthReady(true);
+                            setLoading(false);
+
+                            if (currentUser) {
+                                // Fetch user profile if logged in
+                                const userDocRef = doc(dbInstance, `artifacts/${appId}/users/${currentUser.uid}/memberships`, 'profile');
+                                const docSnap = await getDoc(userDocRef);
+                                if (docSnap.exists()) {
+                                    setUserProfile(docSnap.data());
+                                } else {
+                                    // Create basic profile if not exists
+                                    await setDoc(userDocRef, {
+                                        email: currentUser.email,
+                                        displayName: currentUser.email ? currentUser.email.split('@')[0] : 'สมาชิก',
+                                        registrationDate: new Date().toISOString(),
+                                    });
+                                    const newProfileSnap = await getDoc(userDocRef);
+                                    if(newProfileSnap.exists()) setUserProfile(newProfileSnap.data());
+                                }
+                            } else {
+                                setUserProfile(null);
+                            }
+                        });
+
+                        return () => unsubscribe();
+                    } catch (error) {
+                        console.error("Error initializing Firebase:", error);
+                        showMessage(`เกิดข้อผิดพลาดในการเริ่มต้น Firebase: ${error.message}`, 'error');
+                        setLoading(false);
+                        setIsAuthReady(true);
+                    }
+                };
+
+                initializeFirebase();
+            }, []);
+
+            // Load cart from localStorage on mount
+            useEffect(() => {
+                const savedCart = localStorage.getItem('mhakhob_cart');
+                if (savedCart) {
+                    setCart(JSON.parse(savedCart));
+                }
+            }, []);
+
+            // Save cart to localStorage whenever it changes
+            useEffect(() => {
+                localStorage.setItem('mhakhob_cart', JSON.stringify(cart));
+            }, [cart]);
+
+            const product = {
+                id: 'polo_mhakhob_white',
+                name: 'เสื้อ POLO MhaKhob White',
+                description: 'เสื้อโปโลคุณภาพเยี่ยมจากแบรนด์ MhaKhob ออกแบบมาเพื่อความสบายและสไตล์ที่โดดเด่น ผลิตจากผ้าคอตตอนผสมโพลีเอสเตอร์คุณภาพสูง ระบายอากาศได้ดีเยี่ยม เหมาะสำหรับทุกกิจกรรม ไม่ว่าจะใส่ทำงาน ออกงาน หรือในวันสบายๆ',
+                price: 499,
+                originalPrice: 899,
+                imageUrl: 'images/MhaKhob Polo White.png', // ตรวจสอบว่ารูปนี้อยู่ในโฟลเดอร์เดียวกันหรือ images/
+            };
+
+            const addToCart = () => {
+                setCart(prevCart => {
+                    const existingItem = prevCart.find(item => item.id === product.id);
+                    if (existingItem) {
+                        // ถ้ามีสินค้าอยู่แล้ว ให้เพิ่มจำนวนขึ้น 1
+                        const updatedCart = prevCart.map(item =>
+                            item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item
+                        );
+                        showMessage(`เพิ่มจำนวน ${product.name} เป็น ${existingItem.quantity + 1} ชิ้นในตะกร้าแล้ว!`, 'success');
+                        return updatedCart;
+                    } else {
+                        // ถ้ายังไม่มี ให้เพิ่มสินค้าใหม่เข้าไป 1 ชิ้น
+                        showMessage(`เพิ่ม ${product.name} ลงตะกร้าแล้ว!`, 'success');
+                        return [...prevCart, { ...product, quantity: 1 }];
+                    }
+                });
+            };
+
+            const removeFromCart = (productId) => {
+                setCart(prevCart => {
+                    const updatedCart = prevCart.filter(item => item.id !== productId);
+                    showMessage('นำสินค้าออกจากตะกร้าแล้ว', 'info');
+                    return updatedCart;
+                });
+            };
+
+            const updateQuantity = (productId, newQuantity) => {
+                setCart(prevCart => {
+                    return prevCart.map(item =>
+                        item.id === productId ? { ...item, quantity: Math.max(1, newQuantity) } : item
+                    );
+                });
+            };
+
+            const getTotalItems = () => cart.reduce((sum, item) => sum + item.quantity, 0);
+            const getTotalPrice = () => cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+
+            // --- Checkout Process ---
+            const [orderId, setOrderId] = useState(null); // To store generated order ID
+
+            const handlePlaceOrder = async (customerInfo) => {
+                setLoading(true);
+                try {
+                    const orderData = {
+                        customer: customerInfo,
+                        items: cart.map(item => ({
+                            id: item.id,
+                            name: item.name,
+                            price: item.price,
+                            quantity: item.quantity,
+                        })),
+                        totalPrice: getTotalPrice(),
+                        totalItems: getTotalItems(),
+                        orderDate: serverTimestamp(), // Firebase server timestamp
+                        status: 'Pending',
+                        userId: user ? user.uid : null, // Link to user if logged in
+                        isGuest: !user, // Flag for guest order
+                    };
+
+                    let orderDocRef;
+                    if (user && db) {
+                        // Save to user's private orders collection
+                        orderDocRef = await addDoc(collection(db, `artifacts/${appId}/users/${user.uid}/purchases`), orderData);
+                        // Also update user's profile with this purchase (optional, for history)
+                        const userProfileDocRef = doc(db, `artifacts/${appId}/users/${user.uid}/memberships`, 'profile');
+                        await setDoc(userProfileDocRef, {
+                            lastPurchaseDate: serverTimestamp(),
+                            totalOrders: (userProfile?.totalOrders || 0) + 1,
+                        }, { merge: true });
+                    } else if (db) {
+                        // Save to a public guest orders collection
+                        orderDocRef = await addDoc(collection(db, `artifacts/${appId}/public/guest_orders`), orderData);
+                    } else {
+                        throw new Error("Firestore database not initialized.");
+                    }
+
+                    setOrderId(orderDocRef.id);
+                    setCart([]); // Clear cart after successful order
+                    showMessage('สั่งซื้อสินค้าสำเร็จ!', 'success');
+                    setView('orderConfirmation');
+                } catch (error) {
+                    console.error("Error placing order:", error);
+                    showMessage(`เกิดข้อผิดพลาดในการสั่งซื้อ: ${error.message}`, 'error');
+                } finally {
+                    setLoading(false);
+                }
+            };
+
+            // --- Render Views ---
+
+            const renderProductPage = () => (
+                React.createElement('div', { className: "flex-grow container mx-auto px-4 py-8" },
+                    React.createElement('section', { className: "bg-white p-8 md:p-12 rounded-xl shadow-2xl flex flex-col lg:flex-row items-center lg:items-start gap-10" },
+                        // Product Image Section
+                        React.createElement('div', { className: "lg:w-1/2 w-full flex justify-center items-center p-4 bg-gray-100 rounded-lg shadow-inner" },
+                            React.createElement('img', {
+                                src: product.imageUrl,
+                                alt: product.name,
+                                className: "rounded-lg shadow-xl max-w-full h-auto object-contain",
+                                onError: (e) => { e.target.onerror = null; e.target.src = 'https://placehold.co/600x600/E0E0E0/333333?text=Image+Not+Found'; }
+                            })
+                        ),
+
+                        // Product Details Section
+                        React.createElement('div', { className: "lg:w-1/2 w-full text-center lg:text-left" },
+                            React.createElement('h2', { className: "text-5xl font-bold text-gray-900 mb-4" }, product.name),
+                            React.createElement('p', { className: "text-xl text-gray-700 mb-6 leading-relaxed" }, product.description),
+                            React.createElement('div', { className: "flex flex-col md:flex-row items-center justify-center lg:justify-start gap-6 mb-8" },
+                                React.createElement('span', { className: "text-6xl font-extrabold text-green-600" }, `฿${product.price}`),
+                                React.createElement('span', { className: "text-2xl text-gray-500 line-through" }, `฿${product.originalPrice}`),
+                                React.createElement('span', { className: "bg-red-500 text-white text-lg font-semibold px-4 py-2 rounded-full shadow-md" }, `ลด ${Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)}%`)
+                            ),
+                            React.createElement('div', { className: "flex flex-col sm:flex-row gap-4 justify-center lg:justify-start" },
+                                React.createElement('button', {
+                                    onClick: addToCart,
+                                    className: "bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 px-8 rounded-full shadow-lg transition duration-300 transform hover:scale-105 focus:outline-none focus:ring-4 focus:ring-blue-300"
+                                }, "เพิ่มลงตะกร้า"),
+                                React.createElement('button', {
+                                    onClick: () => setView('cart'),
+                                    className: "bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-4 px-8 rounded-full shadow-md transition duration-300 transform hover:scale-105 focus:outline-none focus:ring-4 focus:ring-gray-400"
+                                }, `ดูตะกร้า (${getTotalItems()})`)
+                            ),
+                            React.createElement('div', { className: "mt-8 pt-8 border-t border-gray-200 text-gray-600 text-lg" },
+                                React.createElement('p', { className: "mb-2" }, React.createElement('strong', { className: "text-gray-800" }, "วัสดุ:"), " คอตตอนผสมโพลีเอสเตอร์"),
+                                React.createElement('p', { className: "mb-2" }, React.createElement('strong', { className: "text-gray-800" }, "สี:"), " ขาว"),
+                                React.createElement('p', { className: "mb-2" }, React.createElement('strong', { className: "text-gray-800" }, "ขนาด:"), " S, M, L, XL, XXL"),
+                                React.createElement('p', null, React.createElement('strong', { className: "text-gray-800" }, "การดูแล:"), " ซักเครื่องได้, ห้ามใช้น้ำยาฟอกขาว")
+                            )
+                        )
+                    )
+                )
+            );
+
+            const renderCart = () => (
+                React.createElement('div', { className: "flex-grow container mx-auto px-4 py-8 bg-white rounded-xl shadow-lg" },
+                    React.createElement('h2', { className: "text-4xl font-bold text-gray-800 mb-6 text-center" }, "ตะกร้าสินค้า"),
+                    cart.length === 0 ? (
+                        React.createElement('p', { className: "text-xl text-gray-600 text-center" }, "ตะกร้าสินค้าว่างเปล่า")
+                    ) : (
+                        React.createElement(React.Fragment, null,
+                            React.createElement('div', { className: "space-y-4 mb-6" },
+                                cart.map(item => (
+                                    React.createElement('div', { key: item.id, className: "flex items-center justify-between p-4 border rounded-lg shadow-sm" },
+                                        React.createElement('div', { className: "flex items-center gap-4" },
+                                            React.createElement('img', { src: item.imageUrl, alt: item.name, className: "w-16 h-16 object-cover rounded-md" }),
+                                            React.createElement('div', null,
+                                                React.createElement('h3', { className: "text-lg font-semibold" }, item.name),
+                                                React.createElement('p', { className: "text-gray-600" }, `฿${item.price.toFixed(2)}`)
+                                            )
+                                        ),
+                                        React.createElement('div', { className: "flex items-center gap-4" },
+                                            React.createElement('input', {
+                                                type: "number",
+                                                min: "1",
+                                                value: item.quantity,
+                                                onChange: (e) => updateQuantity(item.id, parseInt(e.target.value)),
+                                                className: "w-20 p-2 border rounded-md text-center"
+                                            }),
+                                            React.createElement('button', {
+                                                onClick: () => removeFromCart(item.id),
+                                                className: "text-red-500 hover:text-red-700 transition duration-200"
+                                            }, React.createElement(XCircle, { size: 24 }))
+                                        )
+                                    )
+                                ))
+                            ),
+                            React.createElement('div', { className: "text-right text-2xl font-bold text-gray-800 mb-6" }, `รวม: ฿${getTotalPrice().toFixed(2)}`),
+                            React.createElement('div', { className: "flex justify-center gap-4" },
+                                React.createElement('button', {
+                                    onClick: () => setView('product'),
+                                    className: "bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-3 px-6 rounded-full shadow-md transition duration-300"
+                                }, "เลือกซื้อสินค้าต่อ"),
+                                React.createElement('button', {
+                                    onClick: () => setView('checkout'),
+                                    className: "bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-full shadow-md transition duration-300"
+                                }, "ดำเนินการสั่งซื้อ")
+                            )
+                        )
+                    )
+                )
+            );
+
+            const CheckoutForm = ({ onPlaceOrder, user, userProfile, onBack }) => {
+                const [customerName, setCustomerName] = useState(userProfile?.displayName || '');
+                const [customerEmail, setCustomerEmail] = useState(user?.email || '');
+                const [customerPhone, setCustomerPhone] = useState('');
+                const [customerAddress, setCustomerAddress] = useState(userProfile?.address || '');
+
+                useEffect(() => {
+                    // Update form fields if userProfile changes (e.g., after login or profile update)
+                    if (userProfile) {
+                        setCustomerName(userProfile.displayName || '');
+                        setCustomerAddress(userProfile.address || '');
+                    }
+                    if (user) {
+                        setCustomerEmail(user.email || '');
+                    }
+                }, [user, userProfile]);
+
+                const handleSubmit = (e) => {
+                    e.preventDefault();
+                    if (!customerName || !customerEmail || !customerPhone || !customerAddress) {
+                        showMessage('กรุณากรอกข้อมูลลูกค้าให้ครบถ้วน', 'error');
+                        return;
+                    }
+                    onPlaceOrder({
+                        name: customerName,
+                        email: customerEmail,
+                        phone: customerPhone,
+                        address: customerAddress,
+                    });
+                };
+
+                return (
+                    React.createElement('div', { className: "flex-grow container mx-auto px-4 py-8 bg-white rounded-xl shadow-lg" },
+                        React.createElement('h2', { className: "text-4xl font-bold text-gray-800 mb-6 text-center" }, "ข้อมูลการสั่งซื้อ"),
+                        user ? (
+                            React.createElement('p', { className: "text-center text-lg text-gray-600 mb-4" }, "คุณเข้าสู่ระบบแล้ว ข้อมูลจะถูกดึงมาจากโปรไฟล์ของคุณ")
+                        ) : (
+                            React.createElement('p', { className: "text-center text-lg text-gray-600 mb-4" }, "กรุณากรอกข้อมูลสำหรับจัดส่งสินค้า")
+                        ),
+                        React.createElement('form', { onSubmit: handleSubmit, className: "max-w-xl mx-auto space-y-4" },
+                            React.createElement('div', null,
+                                React.createElement('label', { className: "block text-gray-700 text-sm font-bold mb-2", htmlFor: "name" }, "ชื่อ-นามสกุล"),
+                                React.createElement('input', {
+                                    type: "text", id: "name", className: "shadow appearance-none border rounded-lg w-full py-3 px-4 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-400",
+                                    value: customerName, onChange: (e) => setCustomerName(e.target.value), required: true,
+                                    readOnly: user && userProfile?.displayName // Read-only if member has display name
+                                })
+                            ),
+                            React.createElement('div', null,
+                                React.createElement('label', { className: "block text-gray-700 text-sm font-bold mb-2", htmlFor: "email" }, "อีเมล"),
+                                React.createElement('input', {
+                                    type: "email", id: "email", className: "shadow appearance-none border rounded-lg w-full py-3 px-4 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-400",
+                                    value: customerEmail, onChange: (e) => setCustomerEmail(e.target.value), required: true,
+                                    readOnly: user // Read-only if logged in
+                                })
+                            ),
+                            React.createElement('div', null,
+                                React.createElement('label', { className: "block text-gray-700 text-sm font-bold mb-2", htmlFor: "phone" }, "เบอร์โทรศัพท์"),
+                                React.createElement('input', {
+                                    type: "tel", id: "phone", className: "shadow appearance-none border rounded-lg w-full py-3 px-4 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-400",
+                                    placeholder: "เช่น 08XXXXXXXX", value: customerPhone, onChange: (e) => setCustomerPhone(e.target.value), required: true
+                                })
+                            ),
+                            React.createElement('div', null,
+                                React.createElement('label', { className: "block text-gray-700 text-sm font-bold mb-2", htmlFor: "address" }, "ที่อยู่จัดส่ง"),
+                                React.createElement('textarea', {
+                                    id: "address", className: "shadow appearance-none border rounded-lg w-full py-3 px-4 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-400",
+                                    placeholder: "บ้านเลขที่, ถนน, ตำบล, อำเภอ, จังหวัด, รหัสไปรษณีย์", rows: "4", value: customerAddress, onChange: (e) => setCustomerAddress(e.target.value), required: true,
+                                    readOnly: user && userProfile?.address // Read-only if member has address
+                                })
+                            ),
+                            React.createElement('div', { className: "flex justify-between items-center mt-6" },
+                                React.createElement('button', {
+                                    type: "button", onClick: onBack,
+                                    className: "bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-3 px-6 rounded-full shadow-md transition duration-300"
+                                }, "ย้อนกลับ"),
+                                React.createElement('button', {
+                                    type: "submit",
+                                    className: "bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-full shadow-md transition duration-300"
+                                }, `ยืนยันการสั่งซื้อ ฿${getTotalPrice().toFixed(2)}`)
+                            )
+                        )
+                    )
+                );
+            };
+
+            const renderOrderConfirmation = () => (
+                React.createElement('div', { className: "flex-grow container mx-auto px-4 py-8 bg-white rounded-xl shadow-lg text-center" },
+                    React.createElement(CheckCircle, { size: 80, className: "text-green-500 mx-auto mb-6" }),
+                    React.createElement('h2', { className: "text-4xl font-bold text-gray-800 mb-4" }, "คำสั่งซื้อของคุณสำเร็จแล้ว!"),
+                    React.createElement('p', { className: "text-xl text-gray-700 mb-2" }, "ขอบคุณสำหรับการสั่งซื้อสินค้าจาก MhaKhob Jersey!"),
+                    orderId && React.createElement('p', { className: "text-lg text-gray-600 mb-6" }, `รหัสคำสั่งซื้อของคุณคือ: `, React.createElement('span', { className: "font-mono font-bold text-blue-600" }, orderId)),
+                    React.createElement('p', { className: "text-lg text-gray-600 mb-8" }, "เราจะดำเนินการจัดส่งสินค้าให้คุณโดยเร็วที่สุด"),
+                    React.createElement('div', { className: "flex justify-center gap-4" },
+                        React.createElement('a', { href: "index.html", className: "bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-full shadow-md transition duration-300" }, "กลับหน้าหลัก"), // แก้ไขลิงก์เป็น index.html
+                        React.createElement('button', { onClick: () => setView('product'), className: "bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-3 px-6 rounded-full shadow-md transition duration-300" }, "เลือกซื้อสินค้าต่อ")
+                    )
+                )
+            );
+
+
+            if (loading && !isAuthReady) {
+                return (
+                    React.createElement('div', { className: "min-h-screen flex items-center justify-center bg-gray-100" },
+                        React.createElement('div', { className: "flex flex-col items-center p-8 bg-white rounded-lg shadow-xl" },
+                            React.createElement(Loader, { size: 48, className: "animate-spin text-blue-500 mb-4" }),
+                            React.createElement('p', { className: "text-xl text-gray-700" }, "กำลังโหลดระบบ...")
+                        )
+                    )
+                );
+            }
+
+            return (
+                React.createElement('div', { className: "min-h-screen flex flex-col" },
+                    // Header Section
+                    React.createElement('header', { className: "bg-gradient-to-r from-blue-600 to-indigo-700 text-white p-6 shadow-lg rounded-b-lg" },
+                        React.createElement('div', { className: "container mx-auto flex flex-col md:flex-row justify-between items-center" },
+                            React.createElement('div', { className: "flex items-center mb-4 md:mb-0" }, // จัดกลุ่มโลโก้และชื่อแบรนด์
+                                // โลโก้ถูกนำออกตามคำขอ
+                                React.createElement('h1', { className: "text-4xl font-extrabold" }, "MhaKhob Jersey") // เปลี่ยนชื่อแบรนด์
+                            ),
+                            React.createElement('nav', { className: "flex items-center space-x-6" },
+                                React.createElement('ul', { className: "flex space-x-6 text-lg" },
+                                    React.createElement('li', null, React.createElement('a', { href: "index.html", className: "hover:text-blue-200 transition duration-300" }, "หน้าหลัก")), // แก้ไขลิงก์เป็น index.html
+                                    React.createElement('li', null, React.createElement('a', { href: "product.html", className: "hover:text-blue-200 transition duration-300 font-bold border-b-2 border-blue-200 pb-1" }, "สินค้า")),
+                                    React.createElement('li', null, React.createElement('a', { href: "about.html", className: "hover:text-blue-200 transition duration-300" }, "เกี่ยวกับเรา")),
+                                    React.createElement('li', null, React.createElement('a', { href: "contact.html", className: "hover:text-blue-200 transition duration-300" }, "ติดต่อ"))
+                                ),
+                                // ปุ่ม MhaKhob Member
+                                React.createElement('div', { className: "ml-6" },
+                                    React.createElement('a', { href: "member.html", className: "bg-white text-blue-600 hover:bg-blue-100 px-6 py-2 rounded-full text-base font-semibold transition duration-300 shadow-md" }, "MhaKhob Member")
+                                )
+                            )
+                        )
+                    ),
+
+                    // Main Content Area for React Views
+                    React.createElement('main', { className: "flex-grow flex flex-col items-center justify-center p-4" },
+                        view === 'product' && renderProductPage(),
+                        view === 'cart' && React.createElement(renderCart),
+                        view === 'checkout' && React.createElement(CheckoutForm, { onPlaceOrder: handlePlaceOrder, user: user, userProfile: userProfile, onBack: () => setView('cart') }),
+                        view === 'orderConfirmation' && React.createElement(renderOrderConfirmation)
+                    ),
+
+                    // Footer Section
+                    React.createElement('footer', { className: "bg-gray-800 text-white p-6 mt-12 rounded-t-lg" },
+                        React.createElement('div', { className: "container mx-auto text-center text-sm" },
+                            React.createElement('p', null, "© 2025 MhaKhob Brand. สงวนลิขสิทธิ์"),
+                            React.createElement('p', { className: "mt-2" }, "ติดตามเราได้ที่:",
+                                React.createElement('a', { href: "https://www.facebook.com/profile.php?id=61577737801625", target: "_blank", className: "text-blue-400 hover:underline" }, "Facebook"), " | ",
+                                React.createElement('a', { href: "https://www.tiktok.com/@mhakhob2025?_t=ZS-8xgiHF87I0Y&_r=1", target: "_blank", className: "text-blue-400 hover:underline" }, "TikTok")
+                            )
+                        )
+                    ),
+
+                    // Message Box
+                    React.createElement(MessageBox, { message: message, type: messageType, onClose: () => setMessage('') }),
+
+                    // Loading Overlay
+                    loading && (
+                        React.createElement('div', { className: "fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-40" },
+                            React.createElement('div', { className: "flex flex-col items-center p-6 bg-white rounded-lg shadow-xl" },
+                                React.createElement(Loader, { size: 40, className: "animate-spin text-blue-500 mb-3" }),
+                                React.createElement('p', { className: "text-lg text-gray-700" }, "กำลังดำเนินการ...")
+                            )
+                        )
+                    )
+                )
+            );
+        };
+
+        // Render the React App
+        ReactDOM.render(
+            React.createElement(App),
+            document.getElementById('root')
+        );
+    </script>
+</body>
+</html>

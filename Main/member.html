@@ -1,0 +1,697 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MhaKhob Member Zone</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f2f5; /* Light background for member page */
+            color: #333;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column; /* Added to allow header and root to stack */
+            justify-content: flex-start; /* Align content to the top */
+            align-items: center;
+            min-height: 100vh;
+        }
+        /* Animation for message box */
+        @keyframes fadeInOut {
+            0% { opacity: 0; transform: translateY(20px); }
+            10% { opacity: 1; transform: translateY(0); }
+            90% { opacity: 1; transform: translateY(0); }
+            100% { opacity: 0; transform: translateY(20px); }
+        }
+        .animate-fade-in-up {
+            animation: fadeInOut 5s ease-in-out forwards;
+        }
+    </style>
+</head>
+<body>
+    <!-- Header for Member Page with Back to Home Button -->
+    <header class="w-full bg-gray-800 text-white p-4 shadow-md">
+        <div class="container mx-auto flex justify-between items-center">
+            <h1 class="text-2xl font-bold">MhaKhob Member Zone</h1>
+            <a href="index.html" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-full shadow-md transition duration-300 transform hover:scale-105">
+                กลับหน้าหลัก
+            </a>
+        </div>
+    </header>
+
+    <div id="root" class="flex-grow flex items-center justify-center w-full p-4"></div> <!-- นี่คือ div ที่ React App จะถูก Mount -->
+
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script type="module">
+        const { useState, useEffect } = React;
+
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
+        import {
+            getAuth,
+            createUserWithEmailAndPassword,
+            signInWithEmailAndPassword,
+            signOut,
+            onAuthStateChanged,
+            signInAnonymously,
+            signInWithCustomToken,
+        } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
+        import { getFirestore, doc, setDoc, getDoc, collection, getDocs } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+
+        const { LogIn, UserPlus, LogOut, Loader, XCircle, User, ShoppingBag } = window.lucideReact || {
+            // Fallback for Lucide React icons (simplified SVG for display)
+            LogIn: (props) => React.createElement('svg', { ...props, xmlns: 'http://www.w3.org/2000/svg', width: '24', height: '24', viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: '2', strokeLinecap: 'round', strokeLinejoin: 'round', className: 'lucide lucide-log-in' }, React.createElement('path', { d: 'M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4'}), React.createElement('polyline', { points: '10 17 15 12 10 7'}), React.createElement('line', { x1: '15', x2: '3', y1: '12', y2: '12'})),
+            UserPlus: (props) => React.createElement('svg', { ...props, xmlns: 'http://www.w3.org/2000/svg', width: '24', height: '24', viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: '2', strokeLinecap: 'round', strokeLinejoin: 'round', className: 'lucide lucide-user-plus' }, React.createElement('path', { d: 'M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2'}), React.createElement('circle', { cx: '9', cy: '7', r: '4'}), React.createElement('line', { x1: '19', x2: '19', y1: '8', y2: '14'}), React.createElement('line', { x1: '22', x2: '16', y1: '11', y2: '11'})),
+            LogOut: (props) => React.createElement('svg', { ...props, xmlns: 'http://www.w3.org/2000/svg', width: '24', height: '24', viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: '2', strokeLinecap: 'round', strokeLinejoin: 'round', className: 'lucide lucide-log-out' }, React.createElement('path', { d: 'M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4'}), React.createElement('polyline', { points: '16 17 21 12 16 7'}), React.createElement('line', { x1: '21', x2: '9', y1: '12', y2: '12'})),
+            Loader: (props) => React.createElement('svg', { ...props, xmlns: 'http://www.w3.org/2000/svg', width: '24', height: '24', viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: '2', strokeLinecap: 'round', strokeLinejoin: 'round', className: 'lucide lucide-loader' }, React.createElement('line', { x1: '12', x2: '12', y1: '2', y2: '6'}), React.createElement('line', { x1: '12', x2: '12', y1: '18', y2: '22'}), React.createElement('line', { x1: '4.93', x2: '7.76', y1: '4.93', y2: '7.76'}), React.createElement('line', { x1: '16.24', x2: '19.07', y1: '16.24', y2: '19.07'}), React.createElement('line', { x1: '2', x2: '6', y1: '12', y2: '12'}), React.createElement('line', { x1: '18', x2: '22', y1: '12', y2: '12'}), React.createElement('line', { x1: '4.93', x2: '7.76', y1: '19.07', y2: '16.24'}), React.createElement('line', { x1: '16.24', x2: '19.07', y1: '7.76', y2: '4.93'})),
+            XCircle: (props) => React.createElement('svg', { ...props, xmlns: 'http://www.w3.org/2000/svg', width: '24', height: '24', viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: '2', strokeLinecap: 'round', strokeLinejoin: 'round', className: 'lucide lucide-x-circle' }, React.createElement('circle', { cx: '12', cy: '12', r: '10'}), React.createElement('path', { d: 'm15 9-6 6'}), React.createElement('path', { d: 'm9 9 6 6'})),
+            User: (props) => React.createElement('svg', { ...props, xmlns: 'http://www.w3.org/2000/svg', width: '24', height: '24', viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: '2', strokeLinecap: 'round', strokeLinejoin: 'round', className: 'lucide lucide-user' }, React.createElement('path', { d: 'M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2'}), React.createElement('circle', { cx: '12', cy: '7', r: '4'})),
+            ShoppingBag: (props) => React.createElement('svg', { ...props, xmlns: 'http://www.w3.org/2000/svg', width: '24', height: '24', viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: '2', strokeLinecap: 'round', strokeLinejoin: 'round', className: 'lucide lucide-shopping-bag' }, React.createElement('path', { d: 'M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z'}), React.createElement('path', { d: 'M3 6h18'}), React.createElement('path', { d: 'M16 10a4 4 0 0 1-8 0'}))
+        };
+
+
+        // Global variables provided by the Canvas environment
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+        // Custom Message Box Component
+        const MessageBox = ({ message, type, onClose }) => {
+            if (!message) return null;
+
+            let bgColor = 'bg-blue-500';
+            let title = 'Info';
+            if (type === 'error') {
+                bgColor = 'bg-red-500';
+                title = 'Error';
+            } else if (type === 'success') {
+                bgColor = 'bg-green-500';
+                title = 'Success';
+            }
+
+            return (
+                React.createElement('div', { className: "fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50 p-4" },
+                    React.createElement('div', { className: `relative ${bgColor} text-white p-6 rounded-lg shadow-xl max-w-sm w-full animate-fade-in-up` },
+                        React.createElement('button', {
+                            onClick: onClose,
+                            className: "absolute top-3 right-3 text-white hover:text-gray-200 transition duration-200"
+                        }, React.createElement(XCircle, { size: 24 })),
+                        React.createElement('h3', { className: "text-xl font-bold mb-3" }, title),
+                        React.createElement('p', { className: "text-lg" }, message)
+                    )
+                )
+            );
+        };
+
+        // Edit Profile Form Component
+        const EditProfileForm = ({ user, db, appId, onProfileUpdated, onBack }) => {
+            const [displayName, setDisplayName] = useState(user.displayName || '');
+            const [address, setAddress] = useState(''); // Example additional field
+            const [loading, setLoading] = useState(false);
+            const [message, setMessage] = useState('');
+            const [messageType, setMessageType] = useState('info');
+
+            const showMessage = (msg, type = 'info') => {
+                setMessage(msg);
+                setMessageType(type);
+                setTimeout(() => setMessage(''), 5000);
+            };
+
+            useEffect(() => {
+                const fetchUserProfile = async () => {
+                    if (user && db) {
+                        setLoading(true);
+                        try {
+                            const userDocRef = doc(db, `artifacts/${appId}/users/${user.uid}/memberships`, 'profile');
+                            const docSnap = await getDoc(userDocRef);
+                            if (docSnap.exists()) {
+                                const data = docSnap.data();
+                                setDisplayName(data.displayName || user.displayName || '');
+                                setAddress(data.address || '');
+                            }
+                        } catch (error) {
+                            console.error("Error fetching user profile:", error);
+                            showMessage(`เกิดข้อผิดพลาดในการดึงข้อมูลโปรไฟล์: ${error.message}`, 'error');
+                        } finally {
+                            setLoading(false);
+                        }
+                    }
+                };
+                fetchUserProfile();
+            }, [user, db, appId]);
+
+
+            const handleSubmit = async (e) => {
+                e.preventDefault();
+                setLoading(true);
+                try {
+                    const userDocRef = doc(db, `artifacts/${appId}/users/${user.uid}/memberships`, 'profile');
+                    await setDoc(userDocRef, {
+                        displayName: displayName,
+                        address: address,
+                        email: user.email, // Keep email as it is from auth
+                        lastUpdated: new Date().toISOString(),
+                    }, { merge: true }); // Use merge to update existing fields without overwriting others
+
+                    showMessage('บันทึกโปรไฟล์สำเร็จ!', 'success');
+                    onProfileUpdated(); // Notify parent component to refresh user data
+                } catch (error) {
+                    console.error("Error updating profile:", error);
+                    showMessage(`เกิดข้อผิดพลาดในการบันทึกโปรไฟล์: ${error.message}`, 'error');
+                } finally {
+                    setLoading(false);
+                }
+            };
+
+            if (loading) {
+                return React.createElement('div', { className: "flex flex-col items-center justify-center p-8 bg-white rounded-xl shadow-lg" },
+                    React.createElement(Loader, { size: 48, className: "animate-spin text-blue-500 mb-4" }),
+                    React.createElement('p', { className: "text-xl text-gray-700" }, "กำลังโหลดโปรไฟล์...")
+                );
+            }
+
+            return (
+                React.createElement('div', { className: "flex flex-col items-center justify-center p-8 bg-white rounded-xl shadow-lg max-w-md w-full" },
+                    React.createElement('h2', { className: "text-3xl font-bold text-gray-800 mb-6" }, "แก้ไขโปรไฟล์"),
+                    React.createElement('form', { onSubmit: handleSubmit, className: "w-full space-y-4" },
+                        React.createElement('div', null,
+                            React.createElement('label', { className: "block text-gray-700 text-sm font-bold mb-2", htmlFor: "displayName" }, "ชื่อที่แสดง"),
+                            React.createElement('input', {
+                                type: "text",
+                                id: "displayName",
+                                className: "shadow appearance-none border rounded-lg w-full py-3 px-4 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-400",
+                                placeholder: "ชื่อของคุณ",
+                                value: displayName,
+                                onChange: (e) => setDisplayName(e.target.value),
+                                required: true
+                            })
+                        ),
+                        React.createElement('div', null,
+                            React.createElement('label', { className: "block text-gray-700 text-sm font-bold mb-2", htmlFor: "email" }, "อีเมล (ไม่สามารถแก้ไขได้)"),
+                            React.createElement('input', {
+                                type: "email",
+                                id: "email",
+                                className: "shadow appearance-none border rounded-lg w-full py-3 px-4 text-gray-700 bg-gray-100 cursor-not-allowed",
+                                value: user.email,
+                                readOnly: true
+                            })
+                        ),
+                        React.createElement('div', null,
+                            React.createElement('label', { className: "block text-gray-700 text-sm font-bold mb-2", htmlFor: "address" }, "ที่อยู่"),
+                            React.createElement('textarea', {
+                                id: "address",
+                                className: "shadow appearance-none border rounded-lg w-full py-3 px-4 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-400",
+                                placeholder: "ที่อยู่สำหรับจัดส่ง",
+                                value: address,
+                                onChange: (e) => setAddress(e.target.value),
+                                rows: 3
+                            })
+                        ),
+                        React.createElement('div', { className: "flex items-center justify-between" },
+                            React.createElement('button', {
+                                type: "submit",
+                                className: "bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-full shadow-md transition duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-green-300"
+                            }, "บันทึกโปรไฟล์"),
+                            React.createElement('button', {
+                                type: "button",
+                                onClick: onBack,
+                                className: "bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-3 px-6 rounded-full shadow-md transition duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-gray-400"
+                            }, "ย้อนกลับ")
+                        )
+                    ),
+                    React.createElement(MessageBox, { message: message, type: messageType, onClose: () => setMessage('') })
+                )
+            );
+        };
+
+        // Purchase History Component
+        const PurchaseHistory = ({ user, db, appId, onBack }) => {
+            const [purchases, setPurchases] = useState([]);
+            const [loading, setLoading] = useState(true);
+            const [message, setMessage] = useState('');
+            const [messageType, setMessageType] = useState('info');
+
+            const showMessage = (msg, type = 'info') => {
+                setMessage(msg);
+                setMessageType(type);
+                setTimeout(() => setMessage(''), 5000);
+            };
+
+            useEffect(() => {
+                const fetchPurchases = async () => {
+                    if (user && db) {
+                        setLoading(true);
+                        try {
+                            const purchasesCollectionRef = collection(db, `artifacts/${appId}/users/${user.uid}/purchases`);
+                            const querySnapshot = await getDocs(purchasesCollectionRef);
+                            const fetchedPurchases = querySnapshot.docs.map(doc => ({
+                                id: doc.id,
+                                ...doc.data()
+                            }));
+                            // Sort by date if available, or just display as fetched
+                            fetchedPurchases.sort((a, b) => new Date(b.purchaseDate) - new Date(a.purchaseDate));
+                            setPurchases(fetchedPurchases);
+                            if (fetchedPurchases.length === 0) {
+                                showMessage('คุณยังไม่มีประวัติการซื้อ', 'info');
+                            }
+                        } catch (error) {
+                            console.error("Error fetching purchase history:", error);
+                            showMessage(`เกิดข้อผิดพลาดในการดึงประวัติการซื้อ: ${error.message}`, 'error');
+                        } finally {
+                            setLoading(false);
+                        }
+                    }
+                };
+
+                // Simulate adding some mock purchases if none exist for demonstration
+                const addMockPurchases = async () => {
+                    if (user && db && purchases.length === 0) { // Only add if no purchases exist
+                        const purchasesCollectionRef = collection(db, `artifacts/${appId}/users/${user.uid}/purchases`);
+                        const mockData = [
+                            {
+                                orderId: 'ORD001',
+                                productName: 'เสื้อ POLO MhaKhob White',
+                                quantity: 1,
+                                price: 499,
+                                purchaseDate: new Date('2025-06-15').toISOString(),
+                                status: 'จัดส่งแล้ว',
+                            },
+                            {
+                                orderId: 'ORD002',
+                                productName: 'หมวก MhaKhob Cap',
+                                quantity: 2,
+                                price: 250,
+                                purchaseDate: new Date('2025-05-20').toISOString(),
+                                status: 'จัดส่งแล้ว',
+                            },
+                            {
+                                orderId: 'ORD003',
+                                productName: 'เสื้อยืด MhaKhob Black',
+                                quantity: 1,
+                                price: 399,
+                                purchaseDate: new Date('2025-07-01').toISOString(),
+                                status: 'กำลังดำเนินการ',
+                            },
+                        ];
+
+                        for (const item of mockData) {
+                            const docRef = doc(purchasesCollectionRef, item.orderId); // Use orderId as document ID
+                            await setDoc(docRef, item, { merge: true });
+                        }
+                        console.log("Mock purchases added.");
+                        fetchPurchases(); // Re-fetch after adding mocks
+                    }
+                };
+
+                fetchPurchases();
+                // Uncomment the line below to add mock data for testing. Remember to comment it out for production.
+                // addMockPurchases();
+            }, [user, db, appId]);
+
+
+            if (loading) {
+                return React.createElement('div', { className: "flex flex-col items-center justify-center p-8 bg-white rounded-xl shadow-lg" },
+                    React.createElement(Loader, { size: 48, className: "animate-spin text-blue-500 mb-4" }),
+                    React.createElement('p', { className: "text-xl text-gray-700" }, "กำลังโหลดประวัติการซื้อ...")
+                );
+            }
+
+            return (
+                React.createElement('div', { className: "flex flex-col items-center justify-center p-8 bg-white rounded-xl shadow-lg max-w-2xl w-full" },
+                    React.createElement('h2', { className: "text-3xl font-bold text-gray-800 mb-6" }, "ประวัติการซื้อ"),
+                    purchases.length > 0 ? (
+                        React.createElement('div', { className: "w-full overflow-x-auto" },
+                            React.createElement('table', { className: "min-w-full bg-white border border-gray-200 rounded-lg shadow-sm" },
+                                React.createElement('thead', null,
+                                    React.createElement('tr', { className: "bg-gray-100 border-b" },
+                                        React.createElement('th', { className: "py-3 px-4 text-left text-sm font-semibold text-gray-600 uppercase tracking-wider" }, "รหัสคำสั่งซื้อ"),
+                                        React.createElement('th', { className: "py-3 px-4 text-left text-sm font-semibold text-gray-600 uppercase tracking-wider" }, "สินค้า"),
+                                        React.createElement('th', { className: "py-3 px-4 text-left text-sm font-semibold text-gray-600 uppercase tracking-wider" }, "จำนวน"),
+                                        React.createElement('th', { className: "py-3 px-4 text-left text-sm font-semibold text-gray-600 uppercase tracking-wider" }, "ราคา"),
+                                        React.createElement('th', { className: "py-3 px-4 text-left text-sm font-semibold text-gray-600 uppercase tracking-wider" }, "วันที่ซื้อ"),
+                                        React.createElement('th', { className: "py-3 px-4 text-left text-sm font-semibold text-gray-600 uppercase tracking-wider" }, "สถานะ")
+                                    )
+                                ),
+                                React.createElement('tbody', null,
+                                    purchases.map(purchase => (
+                                        React.createElement('tr', { key: purchase.id, className: "border-b hover:bg-gray-50" },
+                                            React.createElement('td', { className: "py-3 px-4 text-sm text-gray-800" }, purchase.orderId),
+                                            React.createElement('td', { className: "py-3 px-4 text-sm text-gray-800" }, purchase.productName),
+                                            React.createElement('td', { className: "py-3 px-4 text-sm text-gray-800" }, purchase.quantity),
+                                            React.createElement('td', { className: "py-3 px-4 text-sm text-gray-800" }, `฿${purchase.price.toFixed(2)}`),
+                                            React.createElement('td', { className: "py-3 px-4 text-sm text-gray-800" }, new Date(purchase.purchaseDate).toLocaleDateString('th-TH')),
+                                            React.createElement('td', { className: "py-3 px-4 text-sm text-gray-800" }, purchase.status)
+                                        )
+                                    ))
+                                )
+                            )
+                        )
+                    ) : (
+                        React.createElement('p', { className: "text-lg text-gray-600" }, "คุณยังไม่มีประวัติการซื้อสินค้า")
+                    ),
+                    React.createElement('div', { className: "mt-6" },
+                        React.createElement('button', {
+                            onClick: onBack,
+                            className: "bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-3 px-6 rounded-full shadow-md transition duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-gray-400"
+                        }, "ย้อนกลับ")
+                    ),
+                    React.createElement(MessageBox, { message: message, type: messageType, onClose: () => setMessage('') })
+                )
+            );
+        };
+
+
+        // Main App Component
+        const App = () => {
+            const [auth, setAuth] = useState(null);
+            const [db, setDb] = useState(null);
+            const [user, setUser] = useState(null);
+            const [userId, setUserId] = useState('กำลังโหลด...');
+            const [loading, setLoading] = useState(true);
+            const [isAuthReady, setIsAuthReady] = useState(false);
+            const [view, setView] = useState('home'); // 'home', 'register', 'login', 'dashboard', 'editProfile', 'purchaseHistory'
+            const [userProfile, setUserProfile] = useState(null); // State to store user profile data
+
+            const [message, setMessage] = useState('');
+            const [messageType, setMessageType] = useState('info');
+
+            const showMessage = (msg, type = 'info') => {
+                setMessage(msg);
+                setMessageType(type);
+                setTimeout(() => setMessage(''), 5000);
+            };
+
+            const fetchUserProfile = async (uid, dbInstance) => {
+                if (!uid || !dbInstance) return;
+                try {
+                    const userDocRef = doc(dbInstance, `artifacts/${appId}/users/${uid}/memberships`, 'profile');
+                    const docSnap = await getDoc(userDocRef);
+                    if (docSnap.exists()) {
+                        setUserProfile(docSnap.data());
+                    } else {
+                        // If profile doesn't exist, create a basic one
+                        await setDoc(userDocRef, {
+                            email: auth.currentUser.email,
+                            displayName: auth.currentUser.email.split('@')[0], // Default display name
+                            registrationDate: new Date().toISOString(),
+                        });
+                        const docSnapAfterCreate = await getDoc(userDocRef);
+                        if (docSnapAfterCreate.exists()) {
+                            setUserProfile(docSnapAfterCreate.data());
+                        }
+                    }
+                } catch (error) {
+                    console.error("Error fetching/creating user profile:", error);
+                    showMessage(`เกิดข้อผิดพลาดในการดึง/สร้างโปรไฟล์: ${error.message}`, 'error');
+                }
+            };
+
+            useEffect(() => {
+                const initializeFirebase = async () => {
+                    try {
+                        const app = initializeApp(firebaseConfig);
+                        const authInstance = getAuth(app);
+                        const dbInstance = getFirestore(app);
+
+                        setAuth(authInstance);
+                        setDb(dbInstance);
+
+                        if (initialAuthToken) {
+                            await signInWithCustomToken(authInstance, initialAuthToken);
+                        } else {
+                            await signInAnonymously(authInstance);
+                        }
+
+                        const unsubscribe = onAuthStateChanged(authInstance, async (currentUser) => {
+                            setUser(currentUser);
+                            setUserId(currentUser ? currentUser.uid : 'ไม่ได้เข้าสู่ระบบ');
+                            setIsAuthReady(true);
+                            setLoading(false);
+
+                            if (currentUser) {
+                                setView('dashboard');
+                                // Fetch user profile when user logs in
+                                await fetchUserProfile(currentUser.uid, dbInstance);
+                            } else {
+                                setView('home');
+                                setUserProfile(null); // Clear profile when logged out
+                            }
+                        });
+
+                        return () => unsubscribe();
+
+                    } catch (error) {
+                        console.error("Error initializing Firebase:", error);
+                        showMessage(`เกิดข้อผิดพลาดในการเริ่มต้น Firebase: ${error.message}`, 'error');
+                        setLoading(false);
+                        setIsAuthReady(true);
+                    }
+                };
+
+                initializeFirebase();
+            }, []);
+
+            // Function to refresh user profile after update
+            const refreshUserProfile = async () => {
+                if (user && db) {
+                    await fetchUserProfile(user.uid, db);
+                }
+            };
+
+            const handleRegister = async (email, password) => {
+                setLoading(true);
+                try {
+                    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+                    const newUser = userCredential.user;
+
+                    const userDocRef = doc(db, `artifacts/${appId}/users/${newUser.uid}/memberships`, 'profile');
+                    await setDoc(userDocRef, {
+                        email: newUser.email,
+                        displayName: newUser.email.split('@')[0], // Default display name
+                        registrationDate: new Date().toISOString(),
+                    });
+
+                    showMessage('สมัครสมาชิกสำเร็จ! ยินดีต้อนรับสู่ MhaKhob Member!', 'success');
+                    setView('dashboard');
+                } catch (error) {
+                    console.error("Error registering:", error);
+                    let errorMessage = 'เกิดข้อผิดพลาดในการสมัครสมาชิก';
+                    if (error.code === 'auth/email-already-in-use') {
+                        errorMessage = 'อีเมลนี้ถูกใช้งานแล้ว ลองใช้อีเมลอื่น';
+                    } else if (error.code === 'auth/invalid-email') {
+                        errorMessage = 'รูปแบบอีเมลไม่ถูกต้อง';
+                    } else if (error.code === 'auth/weak-password') {
+                        errorMessage = 'รหัสผ่านต้องมีความยาวอย่างน้อย 6 ตัวอักษร';
+                    }
+                    showMessage(`${errorMessage}: ${error.message}`, 'error');
+                } finally {
+                    setLoading(false);
+                }
+            };
+
+            const handleLogin = async (email, password) => {
+                setLoading(true);
+                try {
+                    await signInWithEmailAndPassword(auth, email, password);
+                    showMessage('เข้าสู่ระบบสำเร็จ! ยินดีต้อนรับกลับมา!', 'success');
+                    setView('dashboard');
+                } catch (error) {
+                    console.error("Error logging in:", error);
+                    let errorMessage = 'เกิดข้อผิดพลาดในการเข้าสู่ระบบ';
+                    if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
+                        errorMessage = 'อีเมลหรือรหัสผ่านไม่ถูกต้อง';
+                    } else if (error.code === 'auth/invalid-email') {
+                        errorMessage = 'รูปแบบอีเมลไม่ถูกต้อง';
+                    }
+                    showMessage(`${errorMessage}: ${error.message}`, 'error');
+                } finally {
+                    setLoading(false);
+                }
+            };
+
+            const handleLogout = async () => {
+                setLoading(true);
+                try {
+                    await signOut(auth);
+                    showMessage('ออกจากระบบสำเร็จ!', 'success');
+                    setView('home');
+                } catch (error) {
+                    console.error("Error logging out:", error);
+                    showMessage(`เกิดข้อผิดพลาดในการออกจากระบบ: ${error.message}`, 'error');
+                } finally {
+                    setLoading(false);
+                }
+            };
+
+            const renderHome = () => (
+                React.createElement('div', { className: "flex flex-col items-center justify-center p-8 bg-white rounded-xl shadow-lg" },
+                    React.createElement('h2', { className: "text-4xl font-bold text-gray-800 mb-6" }, "ยินดีต้อนรับสู่ MhaKhob Member!"),
+                    React.createElement('p', { className: "text-lg text-gray-600 mb-8 text-center max-w-md" },
+                        "สมัครสมาชิกเพื่อรับสิทธิพิเศษต่างๆ และประสบการณ์สุดพิเศษจาก MhaKhob Jersey!"
+                    ),
+                    React.createElement('div', { className: "flex space-x-4" },
+                        React.createElement('button', {
+                            onClick: () => setView('register'),
+                            className: "flex items-center bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-full shadow-md transition duration-300 transform hover:scale-105"
+                        },
+                            React.createElement(UserPlus, { size: 20, className: "mr-2" }), " สมัครสมาชิก"
+                        ),
+                        React.createElement('button', {
+                            onClick: () => setView('login'),
+                            className: "flex items-center bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-3 px-6 rounded-full shadow-md transition duration-300 transform hover:scale-105"
+                        },
+                            React.createElement(LogIn, { size: 20, className: "mr-2" }), " เข้าสู่ระบบ"
+                        )
+                    )
+                )
+            );
+
+            const AuthForm = ({ type, onSubmit, onBack }) => {
+                const [email, setEmail] = useState('');
+                const [password, setPassword] = useState('');
+
+                const handleSubmit = (e) => {
+                    e.preventDefault();
+                    onSubmit(email, password);
+                };
+
+                const title = type === 'register' ? 'สมัครสมาชิก MhaKhob Member' : 'เข้าสู่ระบบ';
+                const buttonText = type === 'register' ? 'สมัครสมาชิก' : 'เข้าสู่ระบบ';
+
+                return (
+                    React.createElement('div', { className: "flex flex-col items-center justify-center p-8 bg-white rounded-xl shadow-lg max-w-md w-full" },
+                        React.createElement('h2', { className: "text-3xl font-bold text-gray-800 mb-6" }, title),
+                        React.createElement('form', { onSubmit: handleSubmit, className: "w-full space-y-4" },
+                            React.createElement('div', null,
+                                React.createElement('label', { className: "block text-gray-700 text-sm font-bold mb-2", htmlFor: "email" }, "อีเมล"),
+                                React.createElement('input', {
+                                    type: "email",
+                                    id: "email",
+                                    className: "shadow appearance-none border rounded-lg w-full py-3 px-4 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-400",
+                                    placeholder: "ใส่อีเมลของคุณ",
+                                    value: email,
+                                    onChange: (e) => setEmail(e.target.value),
+                                    required: true
+                                })
+                            ),
+                            React.createElement('div', null,
+                                React.createElement('label', { className: "block text-gray-700 text-sm font-bold mb-2", htmlFor: "password" }, "รหัสผ่าน"),
+                                React.createElement('input', {
+                                    type: "password",
+                                    id: "password",
+                                    className: "shadow appearance-none border rounded-lg w-full py-3 px-4 text-gray-700 mb-3 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-400",
+                                    placeholder: "ใส่รหัสผ่านของคุณ",
+                                    value: password,
+                                    onChange: (e) => setPassword(e.target.value),
+                                    required: true
+                                })
+                            ),
+                            React.createElement('div', { className: "flex items-center justify-between" },
+                                React.createElement('button', {
+                                    type: "submit",
+                                    className: "bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-full shadow-md transition duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-300"
+                                }, buttonText),
+                                React.createElement('button', {
+                                    type: "button",
+                                    onClick: onBack,
+                                    className: "bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-3 px-6 rounded-full shadow-md transition duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-gray-400"
+                                }, "ย้อนกลับ")
+                            )
+                        )
+                    )
+                );
+            };
+
+            const renderDashboard = () => (
+                React.createElement('div', { className: "flex flex-col items-center justify-center p-8 bg-white rounded-xl shadow-lg text-center" },
+                    React.createElement('h2', { className: "text-4xl font-bold text-green-600 mb-4" }, "ยินดีต้อนรับ, ", userProfile?.displayName || user?.email || 'MhaKhob Member', "!"),
+                    user && (
+                        React.createElement(React.Fragment, null,
+                            React.createElement('p', { className: "text-xl text-gray-700 mb-2" }, "อีเมล: ", React.createElement('span', { className: "font-semibold" }, user.email)),
+                            React.createElement('p', { className: "text-lg text-gray-500 mb-6" }, "User ID ของคุณ: ", React.createElement('span', { className: "font-mono break-all" }, userId))
+                        )
+                    ),
+
+                    React.createElement('h3', { className: "text-3xl font-semibold text-gray-800 mb-6" }, "สิทธิพิเศษสำหรับสมาชิก:"),
+                    React.createElement('ul', { className: "list-disc list-inside text-left text-lg text-gray-700 space-y-2 mb-8" },
+                        React.createElement('li', null, "ส่วนลดพิเศษ 10% สำหรับสินค้า MhaKhob Jersey ทุกชิ้น!"),
+                        React.createElement('li', null, "เข้าถึงคอลเลกชันสินค้าใหม่ก่อนใคร!"),
+                        React.createElement('li', null, "รับข่าวสารและโปรโมชั่นพิเศษทางอีเมล!"),
+                        React.createElement('li', null, "ของขวัญวันเกิดสุดเซอร์ไพรส์!"),
+                        React.createElement('li', null, "สิทธิ์เข้าร่วมกิจกรรมพิเศษสำหรับสมาชิกเท่านั้น!")
+                    ),
+
+                    React.createElement('div', { className: "flex flex-col sm:flex-row gap-4 justify-center mb-6" },
+                        React.createElement('button', {
+                            onClick: () => setView('editProfile'),
+                            className: "flex items-center bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-6 rounded-full shadow-md transition duration-300 transform hover:scale-105"
+                        },
+                            React.createElement(User, { size: 20, className: "mr-2" }), " แก้ไขโปรไฟล์"
+                        ),
+                        React.createElement('button', {
+                            onClick: () => setView('purchaseHistory'),
+                            className: "flex items-center bg-orange-600 hover:bg-orange-700 text-white font-bold py-3 px-6 rounded-full shadow-md transition duration-300 transform hover:scale-105"
+                        },
+                            React.createElement(ShoppingBag, { size: 20, className: "mr-2" }), " ดูประวัติการซื้อ"
+                        )
+                    ),
+
+                    React.createElement('button', {
+                        onClick: handleLogout,
+                        className: "flex items-center bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-6 rounded-full shadow-md transition duration-300 transform hover:scale-105"
+                    },
+                        React.createElement(LogOut, { size: 20, className: "mr-2" }), " ออกจากระบบ"
+                    )
+                )
+            );
+
+            if (loading && !isAuthReady) {
+                return (
+                    React.createElement('div', { className: "min-h-screen flex items-center justify-center bg-gray-100" },
+                        React.createElement('div', { className: "flex flex-col items-center p-8 bg-white rounded-lg shadow-xl" },
+                            React.createElement(Loader, { size: 48, className: "animate-spin text-blue-500 mb-4" }),
+                            React.createElement('p', { className: "text-xl text-gray-700" }, "กำลังโหลดระบบ...")
+                        )
+                    )
+                );
+            }
+
+            return (
+                React.createElement('div', { className: "min-h-screen flex flex-col items-center justify-center bg-gray-100 p-4" },
+                    React.createElement('h1', { className: "text-5xl font-extrabold text-gray-900 mb-10 text-center" }, "MhaKhob Member Zone"),
+
+                    React.createElement('div', { className: "w-full max-w-2xl" },
+                        view === 'home' && renderHome(),
+                        view === 'register' && React.createElement(AuthForm, { type: "register", onSubmit: handleRegister, onBack: () => setView('home') }),
+                        view === 'login' && React.createElement(AuthForm, { type: "login", onSubmit: handleLogin, onBack: () => setView('home') }),
+                        view === 'dashboard' && React.createElement(renderDashboard),
+                        view === 'editProfile' && React.createElement(EditProfileForm, { user: user, db: db, appId: appId, onProfileUpdated: refreshUserProfile, onBack: () => setView('dashboard') }),
+                        view === 'purchaseHistory' && React.createElement(PurchaseHistory, { user: user, db: db, appId: appId, onBack: () => setView('dashboard') })
+                    ),
+
+                    React.createElement(MessageBox, { message: message, type: messageType, onClose: () => setMessage('') }),
+
+                    loading && (
+                        React.createElement('div', { className: "fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-40" },
+                            React.createElement('div', { className: "flex flex-col items-center p-6 bg-white rounded-lg shadow-xl" },
+                                React.createElement(Loader, { size: 40, className: "animate-spin text-blue-500 mb-3" }),
+                                React.createElement('p', { className: "text-lg text-gray-700" }, "กำลังดำเนินการ...")
+                            )
+                        )
+                    )
+                )
+            );
+        };
+
+        // Render the React App
+        ReactDOM.render(
+            React.createElement(App),
+            document.getElementById('root')
+        );
+    </script>
+</body>
+</html>
